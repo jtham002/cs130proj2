@@ -20,7 +20,12 @@ void initialize_render(driver_state& state, int width, int height)
     state.image_height=height;
     state.image_color=0;
     state.image_depth=0;
-    std::cout<<"TODO: allocate and initialize state.image_color and state.image_depth."<<std::endl;
+    
+    state.image_color = new pixel[width * height];
+    for (int i = 0; i < width*height; i++)
+	state.image_color[i] = make_pixel(0,0,0);
+
+    //std::cout<<"TODO: allocate and initialize state.image_color and state.image_depth."<<std::endl;
 }
 
 // This function will be called to render the data that has been stored in this class.
@@ -32,7 +37,38 @@ void initialize_render(driver_state& state, int width, int height)
 //   render_type::strip -    The vertices are to be interpreted as a triangle strip.
 void render(driver_state& state, render_type type)
 {
-    std::cout<<"TODO: implement rendering."<<std::endl;
+
+    data_geometry* t = new data_geometry[3];
+    auto ptr = state.vertex_data;
+
+    data_vertex in{};
+    int j = 0;
+
+    switch (type) {
+
+	case render_type::triangle:
+		for ( int i = 0; i < state.num_vertices; i++ ) {
+			t[i].data = ptr;
+			in.data = ptr;
+			state.vertex_shader(in, t[i], state.uniform_data);
+			if ( j == 2 ) {
+				rasterize_triangle(state, t[0], t[1], t[2]);
+				j = 0;
+			}
+			j++;
+			ptr += state.floats_per_vertex;
+		}
+		break;
+	case render_type::indexed:
+		break;
+	case render_type::fan:
+		break;
+	case render_type::strip:
+		break;
+    }
+   
+    delete [] t;
+    //std::cout<<"TODO: implement rendering."<<std::endl;
 }
 
 
@@ -58,6 +94,44 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 void rasterize_triangle(driver_state& state, const data_geometry& v0,
     const data_geometry& v1, const data_geometry& v2)
 {
-    std::cout<<"TODO: implement rasterization"<<std::endl;
+
+    int x[3], y[3];
+    int i = (state.image_width / 2.0) * v0.gl_Position[0] + (state.image_width / 2.0);
+    int j = (state.image_height / 2.0) * v0.gl_Position[1] + (state.image_width / 2.0);
+    x[0] = i;
+    y[0] = j;
+
+    i = (state.image_width / 2.0) * v1.gl_Position[0] + (state.image_width / 2.0);
+    j = (state.image_height / 2.0) * v1.gl_Position[1] + (state.image_width / 2.0);
+    x[1] = i;
+    y[1] = j;
+
+    i = (state.image_width / 2.0) * v2.gl_Position[0] + (state.image_width / 2.0);
+    j = (state.image_height / 2.0) * v2.gl_Position[1] + (state.image_width / 2.0);
+    x[2] = i;
+    y[2] = j;
+
+    for ( int a = 0; a < 3; a++ ) 
+	state.image_color[x[a]+y[a] * state.image_width] = make_pixel(255, 255, 255);
+
+
+    float area_ABC = (0.5f * ((x[1]*y[2] - x[2]*y[1]) - (x[0]*y[2] - x[2]*y[0]) - (x[0]*y[1] - x[1]*y[0])));
+
+    for (int b = 0; j < state.image_height; j++) {
+	for (int c = 0; i < state.image_width; i++) {
+		float alpha = (0.5f * ((x[1]*y[2] - x[2]*y[1]) + (y[1]-y[2])*c + (x[2]-x[1])*b)) / area_ABC;
+		float beta = (0.5f * ((x[2]*y[0] - x[0]*y[2]) + (y[2]-y[0])*c + (x[0]-x[2])*b)) / area_ABC;
+		float gamma = (0.5f * ((x[0]*y[1] - x[1]*y[0]) + (y[0]-y[1])*c + (x[1]-x[0])*b)) / area_ABC;
+
+		if (alpha >= 0 && beta >= 0 && gamma >= 0)
+			state.image_color[b+c * state.image_width] = make_pixel(255,255,255);
+	}
+    }
+
+
+
+
+
+    //std::cout<<"TODO: implement rasterization"<<std::endl;
 }
 
