@@ -42,12 +42,11 @@ void render(driver_state& state, render_type type)
     auto ptr = state.vertex_data;
 
     data_vertex in{};
-    int j = 0;
 
     switch (type) {
 
 	case render_type::triangle:
-		for ( int i = 0; i < state.num_vertices; i++ ) {
+		for ( int i = 0, j = 0; i < state.num_vertices; i++, j++ ) {
 			t[i].data = ptr;
 			in.data = ptr;
 			state.vertex_shader(in, t[i], state.uniform_data);
@@ -55,7 +54,6 @@ void render(driver_state& state, render_type type)
 				rasterize_triangle(state, t[0], t[1], t[2]);
 				j = 0;
 			}
-			j++;
 			ptr += state.floats_per_vertex;
 		}
 		break;
@@ -125,7 +123,6 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 			state.image_color[b+c * state.image_width] = make_pixel(255,255,255);
 	}
     }
-
 
 
     delete [] v;

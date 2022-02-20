@@ -42,12 +42,11 @@ void render(driver_state& state, render_type type)
     auto ptr = state.vertex_data;
 
     data_vertex in{};
-    int j = 0;
 
     switch (type) {
 
 	case render_type::triangle:
-		for ( int i = 0; i < state.num_vertices; i++ ) {
+		for ( int i = 0, j = 0; i < state.num_vertices; i++, j++ ) {
 			t[i].data = ptr;
 			in.data = ptr;
 			state.vertex_shader(in, t[i], state.uniform_data);
@@ -55,7 +54,6 @@ void render(driver_state& state, render_type type)
 				rasterize_triangle(state, t[0], t[1], t[2]);
 				j = 0;
 			}
-			j++;
 			ptr += state.floats_per_vertex;
 		}
 		break;
@@ -96,6 +94,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 void rasterize_triangle(driver_state& state, const data_geometry& v0,
     const data_geometry& v1, const data_geometry& v2)
 {
+
     data_geometry* v = new data_geometry[3];
     int x[3], y[3];
 
@@ -110,7 +109,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 	y[d] = j;
 	state.image_color[i+j*state.image_width] = make_pixel(255,255,255);
     }
-
+/*
 
 
     float area_ABC = (0.5f * ((x[1]*y[2] - x[2]*y[1]) - (x[0]*y[2] - x[2]*y[0]) - (x[0]*y[1] - x[1]*y[0])));
@@ -127,9 +126,8 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
     }
 
 
-
     delete [] v;
-
+*/
     //std::cout<<"TODO: implement rasterization"<<std::endl;
 }
 
