@@ -65,6 +65,8 @@ void render(driver_state& state, render_type type)
 		break;
 	case render_type::strip:
 		break;
+	default:
+		break;
     }
    
     delete [] t;
@@ -94,31 +96,27 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 void rasterize_triangle(driver_state& state, const data_geometry& v0,
     const data_geometry& v1, const data_geometry& v2)
 {
-
+    data_geometry* v = new data_geometry[3];
     int x[3], y[3];
-    int i = (state.image_width / 2.0) * v0.gl_Position[0] + (state.image_width / 2.0);
-    int j = (state.image_height / 2.0) * v0.gl_Position[1] + (state.image_width / 2.0);
-    x[0] = i;
-    y[0] = j;
 
-    i = (state.image_width / 2.0) * v1.gl_Position[0] + (state.image_width / 2.0);
-    j = (state.image_height / 2.0) * v1.gl_Position[1] + (state.image_width / 2.0);
-    x[1] = i;
-    y[1] = j;
+    v[0] = v0;
+    v[1] = v1;
+    v[2] = v2;
 
-    i = (state.image_width / 2.0) * v2.gl_Position[0] + (state.image_width / 2.0);
-    j = (state.image_height / 2.0) * v2.gl_Position[1] + (state.image_width / 2.0);
-    x[2] = i;
-    y[2] = j;
+    for ( int d = 0; d < 3; d++ ) {
+	int i = (state.image_width / 2.0) * v[d].gl_Position[0] + ((state.image_width / 2.0) - 0.5);
+	int j = (state.image_height / 2.0) * v[d].gl_Position[1] + ((state.image_width / 2.0) - 0.5);
+	x[d] = i;
+	y[d] = j;
+	state.image_color[i+j*state.image_width] = make_pixel(255,255,255);
+    }
 
-    for ( int a = 0; a < 3; a++ ) 
-	state.image_color[x[a]+y[a] * state.image_width] = make_pixel(255, 255, 255);
 
 
     float area_ABC = (0.5f * ((x[1]*y[2] - x[2]*y[1]) - (x[0]*y[2] - x[2]*y[0]) - (x[0]*y[1] - x[1]*y[0])));
 
-    for (int b = 0; j < state.image_height; j++) {
-	for (int c = 0; i < state.image_width; i++) {
+    for (int b = 0; b < state.image_height; b++) {
+	for (int c = 0; c < state.image_width; c++) {
 		float alpha = (0.5f * ((x[1]*y[2] - x[2]*y[1]) + (y[1]-y[2])*c + (x[2]-x[1])*b)) / area_ABC;
 		float beta = (0.5f * ((x[2]*y[0] - x[0]*y[2]) + (y[2]-y[0])*c + (x[0]-x[2])*b)) / area_ABC;
 		float gamma = (0.5f * ((x[0]*y[1] - x[1]*y[0]) + (y[0]-y[1])*c + (x[1]-x[0])*b)) / area_ABC;
@@ -130,7 +128,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 
 
 
-
+    delete [] v;
 
     //std::cout<<"TODO: implement rasterization"<<std::endl;
 }
