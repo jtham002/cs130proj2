@@ -109,10 +109,10 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 	y[d] = j;
 	state.image_color[i+j*state.image_width] = make_pixel(255,255,255);
     }
-/*
 
 
-    float area_ABC = (0.5f * ((x[1]*y[2] - x[2]*y[1]) - (x[0]*y[2] - x[2]*y[0]) - (x[0]*y[1] - x[1]*y[0])));
+
+    float area_ABC = (0.5f * ((x[1]*y[2] - x[2]*y[1]) + (x[0]*y[2] - x[2]*y[0]) + (x[0]*y[1] - x[1]*y[0])));
 
     for (int b = 0; b < state.image_height; b++) {
 	for (int c = 0; c < state.image_width; c++) {
@@ -127,7 +127,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 
 
     delete [] v;
-*/
+
     //std::cout<<"TODO: implement rasterization"<<std::endl;
 }
 

@@ -94,6 +94,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 void rasterize_triangle(driver_state& state, const data_geometry& v0,
     const data_geometry& v1, const data_geometry& v2)
 {
+
     data_geometry* v = new data_geometry[3];
     int x[3], y[3];
 
@@ -111,7 +112,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 
 
 
-    float area_ABC = (0.5f * ((x[1]*y[2] - x[2]*y[1]) - (x[0]*y[2] - x[2]*y[0]) - (x[0]*y[1] - x[1]*y[0])));
+    float area_ABC = (0.5f * ((x[1]*y[2] - x[2]*y[1]) + (x[0]*y[2] - x[2]*y[0]) + (x[0]*y[1] - x[1]*y[0])));
 
     for (int b = 0; b < state.image_height; b++) {
 	for (int c = 0; c < state.image_width; c++) {
