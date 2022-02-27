@@ -1,5 +1,6 @@
 #include "driver_state.h"
 #include <cstring>
+#include <limits>
 
 driver_state::driver_state()
 {
@@ -22,8 +23,11 @@ void initialize_render(driver_state& state, int width, int height)
     state.image_depth=0;
     
     state.image_color = new pixel[width * height];
-    for (int i = 0; i < width*height; i++)
+    state.image_depth = new float [width * height];
+    for (int i = 0; i < width*height; i++) {
 	state.image_color[i] = make_pixel(0,0,0);
+	state.image_depth[i] = std::numeric_limits<float>::max();
+    }
 
     //std::cout<<"TODO: allocate and initialize state.image_color and state.image_depth."<<std::endl;
 }
@@ -50,11 +54,11 @@ void render(driver_state& state, render_type type)
 			t[j].data = ptr;
 			in.data = ptr;
 			state.vertex_shader(in, t[j], state.uniform_data);
+			ptr += state.floats_per_vertex;
 			if ( j == 2 ) {
 				rasterize_triangle(state, t[0], t[1], t[2]);
 				j = -1;
 			}
-			ptr += state.floats_per_vertex;
 		}
 		break;
 	case render_type::indexed:
