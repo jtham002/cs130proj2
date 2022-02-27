@@ -110,6 +110,27 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 	state.image_color[i+j*state.image_width] = make_pixel(255,255,255);
     }
 
+    auto *data = new float[MAX_FLOATS_PER_VERTEX];
+    data_fragment fragData{data};
+
+    auto output = new data_output;
+/*
+    for(int i = 0; i < state.floats_per_vertex; i++) {
+	switch(state.interp_rules[i]) {
+		case interp_type::flat:
+			fragData.data[i] = v0.data[i];
+			break;
+		case interp_type::smooth:
+			break;
+		case interp_type::noperspective:
+			break;
+		default:
+			break;
+	}
+    }
+
+    state.fragment_shader(fragData, *output, state.uniform_data);
+*/
     float areaABC = (0.5f * ((x[1]*y[2] - x[2]*y[1]) + (x[2]*y[0] - x[0]*y[2]) + (x[0]*y[1] - x[1]*y[0])));
 
     for(int j = 0; j < state.image_height; j++) {
@@ -118,10 +139,31 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
             float beta =  (0.5f * ((x[2] * y[0] - x[0] * y[2]) + (y[2] - y[0])*i + (x[0] - x[2])*j)) / areaABC;
             float gamma = (0.5f * ((x[0] * y[1] - x[1] * y[0]) + (y[0] - y[1])*i + (x[1] - x[0])*j)) / areaABC;
 
-            if (alpha >= 0 && beta >= 0 && gamma >= 0)
-                state.image_color[i + j * state.image_width] = make_pixel(255, 255, 255);
-        }
+            if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+		for(int k = 0; k < state.floats_per_vertex; k++) {
+			switch(state.interp_rules[k]) {
+				case interp_type::flat:
+					fragData.data[k] = v0.data[k];
+					break;
+				case interp_type::smooth:
+					break;
+				case interp_type::noperspective:
+					fragData.data[k] = (alpha * v0.data[k]) + (beta * v1.data[k]) + (gamma * v2.data[k]);
+					break;
+				default:
+					break;
+			}
+	        }
+	     
+	     	state.fragment_shader(fragData, *output, state.uniform_data);
+             	state.image_color[i + j * state.image_width] = make_pixel(output->output_color[0] * 255, output->output_color[1] * 255, output->output_color[2] * 255);
+
+             }
+    	}
     }
+
+    delete [] data;
+    delete output;
     delete [] v;
 
 
