@@ -133,8 +133,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 
     float *data = new float[MAX_FLOATS_PER_VERTEX];
     data_fragment fragData{data};
-
-    auto output = new data_output;
+    data_output output;
 
     float areaABC = ((x[1]*y[2] - x[2]*y[1]) + (x[2]*y[0] - x[0]*y[2]) + (x[0]*y[1] - x[1]*y[0]));
 
@@ -148,6 +147,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 		float intz = (alpha * z[0]) + (beta * z[1]) + (gamma * z[2]);
 		if (intz < state.image_depth[i + j * state.image_width]) {
 			state.image_depth[i + j * state.image_width] = intz;
+
 			for(int k = 0; k < state.floats_per_vertex; k++) {
 				switch(state.interp_rules[k]) {
 					case interp_type::flat:
@@ -161,18 +161,16 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 					default:
 						break;
 				}
-	        	}
-		}
-	     
-	     	state.fragment_shader(fragData, *output, state.uniform_data);
-             	state.image_color[i + j * state.image_width] = make_pixel(output->output_color[0] * 255, output->output_color[1] * 255, output->output_color[2] * 255);
+	        	} 
 
-             }
+	     	state.fragment_shader(fragData, output, state.uniform_data);
+             	state.image_color[i + j * state.image_width] = make_pixel(output.output_color[0] * 255, output.output_color[1] * 255, output.output_color[2] * 255);
+		}
+            }
     	}
     }
 
     delete [] data;
-    delete output;
     delete [] v;
 
 
