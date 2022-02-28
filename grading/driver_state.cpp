@@ -48,7 +48,6 @@ void render(driver_state& state, render_type type)
     data_vertex in{};
 
     switch (type) {
-
 	case render_type::triangle:
 		for ( int i = 0, j = 0; i < state.num_vertices; i++, j++ ) {
 			t[j].data = ptr;
@@ -70,8 +69,6 @@ void render(driver_state& state, render_type type)
 	default:
 		break;
     }
-   
-    delete [] t;
     //std::cout<<"TODO: implement rendering."<<std::endl;
 }
 
@@ -98,68 +95,60 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 void rasterize_triangle(driver_state& state, const data_geometry& v0,
     const data_geometry& v1, const data_geometry& v2)
 {
-
     data_geometry* v = new data_geometry[3];
+    v[0] = v0; v[1] = v1; v[2] = v2;
+
     float x[3], y[3], z[3];
 
-    v[0] = v0;
-    v[1] = v1;
-    v[2] = v2;
-
     for ( int d = 0; d < 3; d++ ) {
-	float i = (state.image_width / 2.0) * (v[d].gl_Position[0]/v0.gl_Position[3]) + (state.image_width/2);
-	float j = (state.image_height / 2.0) * (v[d].gl_Position[1]/v1.gl_Position[3]) + (state.image_height/2);
-	float k = (state.image_width / 2.0) * (v[d].gl_Position[2]/v2.gl_Position[3]) + (state.image_width/2);
+	float i = (state.image_width / 2) * (v[d].gl_Position[0] / v[d].gl_Position[3]) + (state.image_width / 2);
+	float j = (state.image_height / 2) * (v[d].gl_Position[1] / v[d].gl_Position[3]) + (state.image_height / 2);
+	float k = (state.image_width / 2) * (v[d].gl_Position[2] / v[d].gl_Position[3]) + (state.image_width / 2);
 	x[d] = i;
 	y[d] = j;
 	z[d] = k;
-	//state.image_color[i+j*state.image_width] = make_pixel(255,255,255);
     }
-   
-    float *data = new float[MAX_FLOATS_PER_VERTEX];
-    data_fragment fragData{data};
+
+    float area = ( (x[1]*y[2]) - (x[2]*y[1]) ) + ( (x[2]*y[0]) - (x[0]*y[2]) )+ ( (x[0]*y[1]) - (x[1]*y[0]) );
+
     data_output output;
+    data_fragment fragData;
+    float data[MAX_FLOATS_PER_VERTEX];
 
-    float areaABC = ((x[1]*y[2] - x[2]*y[1]) + (x[2]*y[0] - x[0]*y[2]) + (x[0]*y[1] - x[1]*y[0]));
+    for(int j = 0; j < state.image_height; ++j) {
+	for(int i = 0; i < state.image_width; ++i) {
+		float alpha = ((x[1]*y[2] - x[2]*y[1]) + (y[1] - y[2])*i + (x[2] - x[1])*j) / area;
+		float beta =  ((x[2]*y[0] - x[0]*y[2]) + (y[2] - y[0])*i + (x[0] - x[2])*j) / area;
+		float gamma = ((x[0]*y[1] - x[1]*y[0]) + (y[0] - y[1])*i + (x[1] - x[0])*j) / area;
 
-    for(int j = 0; j < state.image_height; j++) {
-        for(int i = 0; i < state.image_width; i++) {
-            float alpha = ((x[1] * y[2] - x[2] * y[1]) + (y[1] - y[2])*i + (x[2] - x[1])*j) / areaABC;
-            float beta =  ((x[2] * y[0] - x[0] * y[2]) + (y[2] - y[0])*i + (x[0] - x[2])*j) / areaABC;
-            float gamma = ((x[0] * y[1] - x[1] * y[0]) + (y[0] - y[1])*i + (x[1] - x[0])*j) / areaABC;
+		if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+			float intz = alpha * z[0] + beta * z[1] + gamma * z[2];
+			if(intz < state.image_depth[i + j * state.image_width]) {
+				state.image_depth[i + j * state.image_width] = intz;
 
-            if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-
-		float intz = (alpha * z[0]) + (beta * z[1]) + (gamma * z[2]);
-		if (intz < state.image_depth[i + j * state.image_width]) {
-			state.image_depth[i + j * state.image_width] = intz;
-
-			for(int k = 0; k < state.floats_per_vertex; k++) {
-				switch(state.interp_rules[k]) {
-					case interp_type::flat:
-						fragData.data[k] = v[0].data[k];
-						break;
-					case interp_type::smooth:
-						break;
-					case interp_type::noperspective:
-						fragData.data[k] = (alpha * v[0].data[k]) + (beta * v[1].data[k]) + (gamma * v[2].data[k]);
-						break;
-					default:
-						break;
+				for(int k = 0; k < state.floats_per_vertex; ++k) {
+					switch(state.interp_rules[k]) {
+						case interp_type::flat: 
+							data[k] = v[0].data[k];
+							break;
+						case interp_type::smooth: 
+							break;			  
+						case interp_type::noperspective: 
+							data[k]= (alpha * v[0].data[k]) + (beta * v[1].data[k]) + (gamma * v[2].data[k]);
+							break;			 
+						default:
+							break;
+					}
 				}
-	        	} 
-
-	     	state.fragment_shader(fragData, output, state.uniform_data);
-             	state.image_color[i + j * state.image_width] = make_pixel(output.output_color[0] * 255, output.output_color[1] * 255, output.output_color[2] * 255);
+				fragData.data = data;
+				state.fragment_shader(fragData, output, state.uniform_data);	
+				state.image_color[i + j * state.image_width] = make_pixel( output.output_color[0] * 255, output.output_color[1] * 255, output.output_color[2] * 255);
+			}
 		}
-            }
-    	}
+	}
     }
-
-    delete [] data;
-    delete [] v;
-
-
+    delete []v;
     //std::cout<<"TODO: implement rasterization"<<std::endl;
 }
+
 
