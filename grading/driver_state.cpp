@@ -100,67 +100,55 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 {
 
     data_geometry* v = new data_geometry[3];
-    int x[3], y[3], z[3];
+    float x[3], y[3], z[3];
 
     v[0] = v0;
     v[1] = v1;
     v[2] = v2;
 
     for ( int d = 0; d < 3; d++ ) {
-	int i = (state.image_width / 2.0) * (v[d].gl_Position[0]/v0.gl_Position[3]) + (state.image_width/2);
-	int j = (state.image_height / 2.0) * (v[d].gl_Position[1]/v1.gl_Position[3]) + (state.image_height/2);
-	int k = (state.image_width / 2.0) * (v[d].gl_Position[2]/v2.gl_Position[3]) + (state.image_width/2);
+	float i = (state.image_width / 2.0) * (v[d].gl_Position[0]/v0.gl_Position[3]) + (state.image_width/2);
+	float j = (state.image_height / 2.0) * (v[d].gl_Position[1]/v1.gl_Position[3]) + (state.image_height/2);
+	float k = (state.image_width / 2.0) * (v[d].gl_Position[2]/v2.gl_Position[3]) + (state.image_width/2);
 	x[d] = i;
 	y[d] = j;
 	z[d] = k;
 	//state.image_color[i+j*state.image_width] = make_pixel(255,255,255);
     }
-
-
-    int minX = std::min(std::min(x[0], x[1]), x[2]);
-    int maxX = std::max(std::max(x[0], x[1]), x[2]);
-    int minY = std::min(std::min(y[0], y[1]), y[2]);
-    int maxY = std::max(std::max(y[0], y[1]), y[2]);
-
-    if (minX < 0) minX = 0;
-    if (minY < 0) minY = 0;
-    if (maxX > state.image_width) maxX = state.image_width - 1;
-    if (maxY > state.image_width) maxY = state.image_height - 1;
    
-
-
-
-
     float *data = new float[MAX_FLOATS_PER_VERTEX];
     data_fragment fragData{data};
     data_output output;
 
     float areaABC = ((x[1]*y[2] - x[2]*y[1]) + (x[2]*y[0] - x[0]*y[2]) + (x[0]*y[1] - x[1]*y[0]));
 
-    for(int j = minY; j < maxY + 1; j++) {
-        for(int i = minX; i < maxX + 1; i++) {
+    for(int j = 0; j < state.image_height; j++) {
+        for(int i = 0; i < state.image_width; i++) {
             float alpha = ((x[1] * y[2] - x[2] * y[1]) + (y[1] - y[2])*i + (x[2] - x[1])*j) / areaABC;
             float beta =  ((x[2] * y[0] - x[0] * y[2]) + (y[2] - y[0])*i + (x[0] - x[2])*j) / areaABC;
             float gamma = ((x[0] * y[1] - x[1] * y[0]) + (y[0] - y[1])*i + (x[1] - x[0])*j) / areaABC;
 
             if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+
 		float intz = (alpha * z[0]) + (beta * z[1]) + (gamma * z[2]);
 		if (intz < state.image_depth[i + j * state.image_width]) {
 			state.image_depth[i + j * state.image_width] = intz;
+
 			for(int k = 0; k < state.floats_per_vertex; k++) {
 				switch(state.interp_rules[k]) {
 					case interp_type::flat:
-						fragData.data[k] = v0.data[k];
+						fragData.data[k] = v[0].data[k];
 						break;
 					case interp_type::smooth:
 						break;
 					case interp_type::noperspective:
-						fragData.data[k] = (alpha * v0.data[k]) + (beta * v1.data[k]) + (gamma * v2.data[k]);
+						fragData.data[k] = (alpha * v[0].data[k]) + (beta * v[1].data[k]) + (gamma * v[2].data[k]);
 						break;
 					default:
 						break;
 				}
 	        	} 
+
 	     	state.fragment_shader(fragData, output, state.uniform_data);
              	state.image_color[i + j * state.image_width] = make_pixel(output.output_color[0] * 255, output.output_color[1] * 255, output.output_color[2] * 255);
 		}
