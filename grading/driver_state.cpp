@@ -42,34 +42,63 @@ void initialize_render(driver_state& state, int width, int height)
 void render(driver_state& state, render_type type)
 {
 
-    data_geometry* t = new data_geometry[3];
-    auto ptr = state.vertex_data;
-
-    data_vertex in{};
+    data_geometry t[3];
+    data_vertex v;
+    data_vertex vArr[3];
+    int ptr = 0;
 
     switch (type) {
 	case render_type::triangle:
-		for ( int i = 0, j = 0; i < state.num_vertices; i++, j++ ) {
-			t[j].data = ptr;
-			in.data = ptr;
-			state.vertex_shader(in, t[j], state.uniform_data);
-			ptr += state.floats_per_vertex;
-			if ( j == 2 ) {
-				rasterize_triangle(state, t[0], t[1], t[2]);
-				j = -1;
+		for ( int i = 0; i < state.num_vertices * state.floats_per_vertex; i+= 3* state.floats_per_vertex) {
+			for (int j = 0; j < 3; j++) {
+				t[j].data = state.vertex_data + i + j * state.floats_per_vertex;
+				v.data = state.vertex_data + i + j * state.floats_per_vertex;
+				state.vertex_shader(v, t[j], state.uniform_data);
 			}
+			clip_triangle(state, t[0], t[1], t[2], 0);
 		}
 		break;
 	case render_type::indexed:
+		for (int i = 0; i < 3 * state.num_triangles; i += 3) {
+			for (int j = 0; j < 3; j++) {
+				ptr = state.index_data[i+j];
+				vArr[j].data = state.vertex_data + ptr * state.floats_per_vertex;
+				t[j].data = state.vertex_data + ptr * state.floats_per_vertex;
+				state.vertex_shader(vArr[j], t[j], state.uniform_data);
+			}
+			clip_triangle(state, t[0], t[1], t[2], 0);
+		}
 		break;
 	case render_type::fan:
+		for (int i = 0; i < 3 * state.num_vertices; i++) {
+			for (int j = 0; j < 3; j++) {
+				if (j == 0) {
+					vArr[j].data = state.vertex_data;
+					t[j].data = state.vertex_data;
+				} else {
+					vArr[j].data = state.vertex_data + (j* state.floats_per_vertex) + (i * state.floats_per_vertex);
+					t[j].data = state.vertex_data + (j * state.floats_per_vertex) + (i * state.floats_per_vertex);
+				}
+				state.vertex_shader(vArr[j], t[j], state.uniform_data);
+			}
+			clip_triangle(state, t[0], t[1], t[2], 0);
+		}
 		break;
 	case render_type::strip:
+		for (int i = 0; i < state.num_vertices - 2; i++) {
+			if (ptr != 0) ptr = ptr - (2 * state.floats_per_vertex);
+			for (int j = 0; j < 3; j++) {
+				vArr[j].data = state.vertex_data + ptr;
+				t[j].data = state.vertex_data + ptr;
+				ptr += state.floats_per_vertex;
+				state.vertex_shader(vArr[j], t[j], state.uniform_data);
+			}
+			clip_triangle(state, t[0], t[1], t[2], 0);
+		}
 		break;
 	default:
 		break;
     }
-    //std::cout<<"TODO: implement rendering."<<std::endl;
 }
 
 
@@ -85,8 +114,74 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
         rasterize_triangle(state, v0, v1, v2);
         return;
     }
-    std::cout<<"TODO: implement clipping. (The current code passes the triangle through without clipping them.)"<<std::endl;
-    clip_triangle(state, v0, v1, v2,face+1);
+    else {
+	data_geometry* v = new data_geometry[3];
+	v[0] = v0; v[1] = v1; v[2] = v2;
+
+	data_geometry first[3]; data_geometry second[3];
+	vec4 A = v0.gl_Position; vec4 B = v1.gl_Position; vec4 C = v2.gl_Position;
+
+	if (A[2] < -A[3] && B[2] < -B[3] && C[2] < -C[3]) return;
+	else {
+		if (A[2] < -A[3] && B[2] < -B[3] && C[2] >= -C[3]) {
+			float A1;
+			float B1 = (-B[3] - B[2]) / (A[2] + A[3] - B[3] - B[2]);
+			float B2 = (-A[3] - A[2]) / (C[2] + C[3] - A[3] - A[2]);
+			vec4 P1 = B1 * A + (1 - B1) * B;
+			vec4 P2 = B2 * C + (1 - B2) * A;
+
+			first[0].data = new float[state.floats_per_vertex];
+			first[1] = v1;
+			first[2] = v2;
+
+			for(int i = 0; i < state.floats_per_vertex; i++) {
+					float A1;
+				switch (state.interp_rules[i]) {
+					case interp_type::flat:
+						first[0].data[i] = v0.data[i];
+						break;
+					case interp_type::smooth:
+						first[0].data[i] = B2 * v2.data[i] + (1 - B2) * v0.data[i];
+						break;
+					case interp_type::noperspective:
+						A1 = B2 * v[2].gl_Position[3] / (B2* v2.gl_Position[3] + (1 - B2) * v0.gl_Position[3]);
+						first[0].data[i] = A1 * v2.data[i] + (1 - A1) * v0.data[i];
+						break;
+					default:
+						break;
+					}
+			}
+			first[0].gl_Position = P2;
+			for(int i = 0; i < 3; i++) v[i] = first[i];
+			clip_triangle(state, v[0], v[1], v[2], face+1);
+
+
+			second[0].data = new float[state.floats_per_vertex];
+			second[1] = v1;
+			second[2] = first[0];
+
+                        for(int i = 0; i < state.floats_per_vertex; i++) {
+                                switch (state.interp_rules[i]) {
+                                        case interp_type::flat:
+                                                second[0].data[i] = v0.data[i];
+                                                break;
+                                        case interp_type::smooth:
+                                                second[0].data[i] = B2 * v0.data[i] + (1 - B2) * v1.data[i];
+                                                break;
+                                        case interp_type::noperspective:
+                                                A1 = B2 * v0.gl_Position[3] / (B2* v0.gl_Position[3] + (1 - B2) * v1.gl_Position[3]);
+                                                second[0].data[i] = A1 * v0.data[i] + (1 - A1) * v1.data[i];
+                                                break;
+                                        default:
+                                                break;
+                                        }
+			}
+			second[0].gl_Position = P1;
+			v[0] = second[0]; v[1] = second[1]; v[2] = second[0];
+		}
+		clip_triangle(state, v[0], v[1], v[2], face+1);
+	}
+    }
 }
 
 // Rasterize the triangle defined by the three vertices in the "in" array.  This
@@ -109,29 +204,50 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 	z[d] = k;
     }
 
+    float minX = std::min(std::min(x[0], x[1]), x[2]);
+    float maxX = std::max(std::max(x[0], x[1]), x[2]);
+    float minY = std::min(std::min(y[0], y[1]), y[2]);
+    float maxY = std::max(std::max(y[0], y[1]), y[2]);
+
+    if (minX < 0) minX = 0;
+    if (minY < 0) minY = 0;
+    if (maxX > state.image_width) maxX = state.image_width;
+    if (maxY > state.image_height) maxY = state.image_height;
+
+
     float area = ( (x[1]*y[2]) - (x[2]*y[1]) ) + ( (x[2]*y[0]) - (x[0]*y[2]) )+ ( (x[0]*y[1]) - (x[1]*y[0]) );
 
     data_output output;
     data_fragment fragData;
     float data[MAX_FLOATS_PER_VERTEX];
 
-    for(int j = 0; j < state.image_height; ++j) {
-	for(int i = 0; i < state.image_width; ++i) {
+    for(int j = minY; j < maxY; ++j) {
+	for(int i = minX; i < maxX; ++i) {
 		float alpha = ((x[1]*y[2] - x[2]*y[1]) + (y[1] - y[2])*i + (x[2] - x[1])*j) / area;
 		float beta =  ((x[2]*y[0] - x[0]*y[2]) + (y[2] - y[0])*i + (x[0] - x[2])*j) / area;
 		float gamma = ((x[0]*y[1] - x[1]*y[0]) + (y[0] - y[1])*i + (x[1] - x[0])*j) / area;
 
 		if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+			float a = alpha;
+			float b = beta;
+			float g = gamma;
 			float intz = alpha * z[0] + beta * z[1] + gamma * z[2];
+
 			if(intz < state.image_depth[i + j * state.image_width]) {
 				state.image_depth[i + j * state.image_width] = intz;
 
 				for(int k = 0; k < state.floats_per_vertex; ++k) {
+					float n;
 					switch(state.interp_rules[k]) {
 						case interp_type::flat: 
 							data[k] = v[0].data[k];
 							break;
 						case interp_type::smooth: 
+							n = (a / v[0].gl_Position[3]) + (b / v[1].gl_Position[3]) + (g / v[2].gl_Position[3]);
+
+							alpha = a / (n * v[0].gl_Position[3]);
+							beta = b / (n * v[1].gl_Position[3]);
+							gamma = g / (n* v[2].gl_Position[3]);
 							break;			  
 						case interp_type::noperspective: 
 							data[k]= (alpha * v[0].data[k]) + (beta * v[1].data[k]) + (gamma * v[2].data[k]);
@@ -148,7 +264,6 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 	}
     }
     delete []v;
-    //std::cout<<"TODO: implement rasterization"<<std::endl;
 }
 
 
