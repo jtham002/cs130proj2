@@ -101,7 +101,6 @@ void render(driver_state& state, render_type type)
     }
 }
 
-
 // This function clips a triangle (defined by the three vertices in the "in" array).
 // It will be called recursively, once for each clipping face (face=0, 1, ..., 5) to
 // clip against each of the clipping faces in turn.  When face=6, clip_triangle should
@@ -166,10 +165,10 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
                                                 second[0].data[i] = v0.data[i];
                                                 break;
                                         case interp_type::smooth:
-                                                second[0].data[i] = B2 * v0.data[i] + (1 - B2) * v1.data[i];
+                                                second[0].data[i] = B1 * v0.data[i] + (1 - B2) * v1.data[i];
                                                 break;
                                         case interp_type::noperspective:
-                                                A1 = B2 * v0.gl_Position[3] / (B2* v0.gl_Position[3] + (1 - B2) * v1.gl_Position[3]);
+                                                A1 = B1 * v0.gl_Position[3] / (B1 * v0.gl_Position[3] + (1 - B2) * v1.gl_Position[3]);
                                                 second[0].data[i] = A1 * v0.data[i] + (1 - A1) * v1.data[i];
                                                 break;
                                         default:
