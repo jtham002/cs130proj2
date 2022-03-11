@@ -72,7 +72,7 @@ void render(driver_state& state, render_type type)
 	case render_type::fan:
 		for (int i = 0; i < state.num_vertices; i++) {
 			for (int j = 0; j < 3; j++) {
-				if (j != 0) in[j].data = state.vertex_data + ((state.floats_per_vertex) * (i+j));
+				if (j) in[j].data = state.vertex_data + ((state.floats_per_vertex) * (i+j));
 				else in[j].data = state.vertex_data + (j * state.floats_per_vertex);
 			
 				tmpT[j].data = in[j].data;
@@ -107,13 +107,12 @@ void render(driver_state& state, render_type type)
 void clip_triangle(driver_state& state, const data_geometry& v0,
     const data_geometry& v1, const data_geometry& v2,int face)
 {
-    if(face==1)
+    if(face==6)
     {
         rasterize_triangle(state, v0, v1, v2);
         return;
     }
     else {
-	//bool isClip = false;
 	float A1, B1, B2; vec4 P1, P2;
 
 	data_geometry first[3]; data_geometry second[3];
@@ -122,7 +121,6 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 	if (A[2] < -A[3] && B[2] < -B[3] && C[2] < -C[3]) return;
 	else {
 		if (A[2] < -A[3] && B[2] >= -B[3] && C[2] >= -C[3]) {
-	//		isClip = true;
 			B1 = (-B[3] - B[2]) / (A[2] + A[3] - B[3] - B[2]);
 			B2 = (-A[3] - A[2]) / (C[2] + C[3] - A[3] - A[2]);
 			P1 = B1 * A + (1 - B1) * B;
