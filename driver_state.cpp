@@ -220,8 +220,8 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
     float data[MAX_FLOATS_PER_VERTEX];
     
 
-    for(int j = minY; j < maxY; ++j) {
-	for(int i = minX; i < maxX; ++i) {
+    for(int j = minY + 1; j < maxY; ++j) {
+	for(int i = minX + 1; i < maxX; ++i) {
 		float alpha = ((x[1]*y[2] - x[2]*y[1]) + (y[1] - y[2])*i + (x[2] - x[1])*j) / area;
 		float beta =  ((x[2]*y[0] - x[0]*y[2]) + (y[2] - y[0])*i + (x[0] - x[2])*j) / area;
 		float gamma = ((x[0]*y[1] - x[1]*y[0]) + (y[0] - y[1])*i + (x[1] - x[0])*j) / area;
@@ -236,7 +236,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 				state.image_depth[i + j * state.image_width] = intz;
 
 				for(int k = 0; k < state.floats_per_vertex; ++k) {
-					float n;
+					float n = 0;
 					switch(state.interp_rules[k]) {
 						case interp_type::flat: 
 							data[k] = v0.data[k];
