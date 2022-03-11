@@ -236,7 +236,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 				state.image_depth[i + j * state.image_width] = intz;
 
 				for(int k = 0; k < state.floats_per_vertex; ++k) {
-					float n;
+					float n = 0;
 					switch(state.interp_rules[k]) {
 						case interp_type::flat: 
 							data[k] = v0.data[k];
