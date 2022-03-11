@@ -107,7 +107,7 @@ void render(driver_state& state, render_type type)
 void clip_triangle(driver_state& state, const data_geometry& v0,
     const data_geometry& v1, const data_geometry& v2,int face)
 {
-    if(face==6)
+    if(face==1)
     {
         rasterize_triangle(state, v0, v1, v2);
         return;
