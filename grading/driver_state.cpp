@@ -113,7 +113,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
         return;
     }
     else {
-	bool isClip = false;
+	//bool isClip = false;
 	float A1, B1, B2; vec4 P1, P2;
 
 	data_geometry first[3]; data_geometry second[3];
@@ -122,7 +122,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 	if (A[2] < -A[3] && B[2] < -B[3] && C[2] < -C[3]) return;
 	else {
 		if (A[2] < -A[3] && B[2] >= -B[3] && C[2] >= -C[3]) {
-			isClip = true;
+	//		isClip = true;
 			B1 = (-B[3] - B[2]) / (A[2] + A[3] - B[3] - B[2]);
 			B2 = (-A[3] - A[2]) / (C[2] + C[3] - A[3] - A[2]);
 			P1 = B1 * A + (1 - B1) * B;
@@ -175,7 +175,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 			second[0].gl_Position = P1;
 			clip_triangle(state, second[0], second[1], second[2], face+1);
 		}
-		if (isClip == false ) clip_triangle(state, v0, v1, v2, face+1);
+		else clip_triangle(state, v0, v1, v2, face+1);
 	}
     }
 }
