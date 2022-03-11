@@ -28,8 +28,6 @@ void initialize_render(driver_state& state, int width, int height)
 	state.image_color[i] = make_pixel(0,0,0);
 	state.image_depth[i] = std::numeric_limits<float>::max();
     }
-
-    //std::cout<<"TODO: allocate and initialize state.image_color and state.image_depth."<<std::endl;
 }
 
 // This function will be called to render the data that has been stored in this class.
@@ -42,55 +40,55 @@ void initialize_render(driver_state& state, int width, int height)
 void render(driver_state& state, render_type type)
 {
     data_geometry t[3];
-    data_vertex v;
-    data_vertex vArr[3];
-    int ptr = 0;
+    data_geometry tmpT[3];
+    data_vertex in[3];
 
     switch (type) {
 	case render_type::triangle:
-		for ( int i = 0; i < state.num_vertices * state.floats_per_vertex; i+= 3* state.floats_per_vertex) {
-			for (int j = 0; j < 3; j++) {
-				t[j].data = state.vertex_data + i + j * state.floats_per_vertex;
-				v.data = state.vertex_data + i + j * state.floats_per_vertex;
-				state.vertex_shader(v, t[j], state.uniform_data);
+	{
+		int ptr = 0;
+		for ( int i = 0; i < state.num_vertices / 3; i++) {
+			for (int j = 0; j < 3; j++, ptr += state.floats_per_vertex) {
+				in[j].data = &state.vertex_data[ptr];
+				tmpT[j].data = in[j].data;
+				state.vertex_shader(in[j], tmpT[j], state.uniform_data);
+				t[j] = tmpT[j];
 			}
 			clip_triangle(state, t[0], t[1], t[2], 0);
 		}
 		break;
+	}
 	case render_type::indexed:
 		for (int i = 0; i < 3 * state.num_triangles; i += 3) {
 			for (int j = 0; j < 3; j++) {
-				ptr = state.index_data[i+j];
-				vArr[j].data = state.vertex_data + (ptr * state.floats_per_vertex);
-				t[j].data = state.vertex_data + (ptr * state.floats_per_vertex);
-				state.vertex_shader(vArr[j], t[j], state.uniform_data);
+				in[j].data = &state.vertex_data[state.index_data[i + j] * state.floats_per_vertex];
+				tmpT[j].data = in[j].data;
+				state.vertex_shader(in[j], tmpT[j], state.uniform_data);
+				t[j] = tmpT[j];
 			}
 			clip_triangle(state, t[0], t[1], t[2], 0);
 		}
 		break;
 	case render_type::fan:
-		for (int i = 0; i < 3 * state.num_vertices; i++) {
+		for (int i = 0; i < state.num_vertices; i++) {
 			for (int j = 0; j < 3; j++) {
-				if (j != 0) {
-					vArr[j].data = state.vertex_data + (j * state.floats_per_vertex) + (i * state.floats_per_vertex);
-					t[j].data = state.vertex_data + (j * state.floats_per_vertex) + (i * state.floats_per_vertex);
-				} else {
-					vArr[j].data = state.vertex_data;
-					t[j].data = state.vertex_data;
-				}
-				state.vertex_shader(vArr[j], t[j], state.uniform_data);
+				if (j != 0) in[j].data = state.vertex_data + ((state.floats_per_vertex) * (i+j));
+				else in[j].data = state.vertex_data + (j * state.floats_per_vertex);
+			
+				tmpT[j].data = in[j].data;
+				state.vertex_shader(in[j], tmpT[j], state.uniform_data);
+				t[j] = tmpT[j];
 			}
 			clip_triangle(state, t[0], t[1], t[2], 0);
 		}
 		break;
 	case render_type::strip:
 		for (int i = 0; i < state.num_vertices - 2; i++) {
-			if (ptr != 0) ptr -= (2 * state.floats_per_vertex);
 			for (int j = 0; j < 3; j++) {
-				vArr[j].data = state.vertex_data + ptr;
-				t[j].data = state.vertex_data + ptr;
-				ptr += state.floats_per_vertex;
-				state.vertex_shader(vArr[j], t[j], state.uniform_data);
+				in[j].data = &state.vertex_data[(i+j) * state.floats_per_vertex];
+				tmpT[j].data = in[j].data;
+				state.vertex_shader(in[j], tmpT[j], state.uniform_data);
+				t[j] = tmpT[j];
 			}
 			clip_triangle(state, t[0], t[1], t[2], 0);
 		}
@@ -118,17 +116,18 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 	data_geometry* v = new data_geometry[3];
 	v[0] = v0; v[1] = v1; v[2] = v2;
 
+	float A1, B1, B2; vec4 P1, P2;
+
 	data_geometry first[3]; data_geometry second[3];
 	vec4 A = v0.gl_Position; vec4 B = v1.gl_Position; vec4 C = v2.gl_Position;
 
 	if (A[2] < -A[3] && B[2] < -B[3] && C[2] < -C[3]) return;
 	else {
 		if (A[2] < -A[3] && B[2] >= -B[3] && C[2] >= -C[3]) {
-			float A1;
-			float B1 = (-B[3] - B[2]) / (A[2] + A[3] - B[3] - B[2]);
-			float B2 = (-A[3] - A[2]) / (C[2] + C[3] - A[3] - A[2]);
-			vec4 P1 = B1 * A + (1 - B1) * B;
-			vec4 P2 = B2 * C + (1 - B2) * A;
+			B1 = (-B[3] - B[2]) / (A[2] + A[3] - B[3] - B[2]);
+			B2 = (-A[3] - A[2]) / (C[2] + C[3] - A[3] - A[2]);
+			P1 = B1 * A + (1 - B1) * B;
+			P2 = B2 * C + (1 - B2) * A;
 
 			first[0].data = new float[state.floats_per_vertex];
 			first[1] = v1;
@@ -168,7 +167,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
                                                 second[0].data[i] = B1 * v0.data[i] + (1 - B2) * v1.data[i];
                                                 break;
                                         case interp_type::noperspective:
-                                                A1 = B1 * v0.gl_Position[3] / (B1 * v0.gl_Position[3] + (1 - B2) * v1.gl_Position[3]);
+                                                A1 = B1 * v0.gl_Position[3] / (B1 * v0.gl_Position[3] + (1 - B1) * v1.gl_Position[3]);
                                                 second[0].data[i] = A1 * v0.data[i] + (1 - A1) * v1.data[i];
                                                 break;
                                         default:
@@ -247,8 +246,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 
 							alpha = a / (n * v[0].gl_Position[3]);
 							beta = b / (n * v[1].gl_Position[3]);
-							gamma = g / (n* v[2].gl_Position[3]);
-							break;			  
+							gamma = g / (n* v[2].gl_Position[3]); 
 						case interp_type::noperspective: 
 							data[k] = (alpha * v0.data[k]) + (beta * v1.data[k]) + (gamma * v2.data[k]);
 							break;			 
