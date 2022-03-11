@@ -113,9 +113,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
         return;
     }
     else {
-	data_geometry* v = new data_geometry[3];
-	v[0] = v0; v[1] = v1; v[2] = v2;
-
+	bool isClip = false;
 	float A1, B1, B2; vec4 P1, P2;
 
 	data_geometry first[3]; data_geometry second[3];
@@ -124,6 +122,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 	if (A[2] < -A[3] && B[2] < -B[3] && C[2] < -C[3]) return;
 	else {
 		if (A[2] < -A[3] && B[2] >= -B[3] && C[2] >= -C[3]) {
+			isClip = true;
 			B1 = (-B[3] - B[2]) / (A[2] + A[3] - B[3] - B[2]);
 			B2 = (-A[3] - A[2]) / (C[2] + C[3] - A[3] - A[2]);
 			P1 = B1 * A + (1 - B1) * B;
@@ -142,7 +141,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 						first[0].data[i] = B2 * v2.data[i] + (1 - B2) * v0.data[i];
 						break;
 					case interp_type::noperspective:
-						A1 = B2 * v[2].gl_Position[3] / (B2 * v2.gl_Position[3] + (1 - B2) * v0.gl_Position[3]);
+						A1 = B2 * v2.gl_Position[3] / (B2 * v2.gl_Position[3] + (1 - B2) * v0.gl_Position[3]);
 						first[0].data[i] = A1 * v2.data[i] + (1 - A1) * v0.data[i];
 						break;
 					default:
@@ -150,8 +149,7 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
 					}
 			}
 			first[0].gl_Position = P2;
-			for(int i = 0; i < 3; i++) v[i] = first[i];
-			clip_triangle(state, v[0], v[1], v[2], face+1);
+			clip_triangle(state, first[0], first[1], first[2], face+1);
 
 
 			second[0].data = new float[state.floats_per_vertex];
@@ -175,9 +173,9 @@ void clip_triangle(driver_state& state, const data_geometry& v0,
                                         }
 			}
 			second[0].gl_Position = P1;
-			v[0] = second[0]; v[1] = second[1]; v[2] = second[0];
+			clip_triangle(state, second[0], second[1], second[2], face+1);
 		}
-		clip_triangle(state, v[0], v[1], v[2], face+1);
+		if (isClip == false ) clip_triangle(state, v0, v1, v2, face+1);
 	}
     }
 }
@@ -222,7 +220,7 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
 
     for(int j = minY; j < maxY; ++j) {
 	for(int i = minX; i < maxX; ++i) {
-		float alpha = ((x[1]*y[2] - x[2]*y[1]) + (y[1] - y[2])*i + (x[2] - x[1])*j) / area;
+		float alpha = ((x[1]*y[2] - x[2]*y[1]) + (y[1] - y[2])*i + (x[2] - x[1])*j)/ area;
 		float beta =  ((x[2]*y[0] - x[0]*y[2]) + (y[2] - y[0])*i + (x[0] - x[2])*j) / area;
 		float gamma = ((x[0]*y[1] - x[1]*y[0]) + (y[0] - y[1])*i + (x[1] - x[0])*j) / area;
 
