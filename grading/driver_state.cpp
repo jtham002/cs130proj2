@@ -194,9 +194,9 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
     float x[3], y[3], z[3];
 
     for ( int d = 0; d < 3; d++ ) {
-	float i = (state.image_width / 2) * (v[d].gl_Position[0] / v[d].gl_Position[3]) + (state.image_width / 2);
-	float j = (state.image_height / 2) * (v[d].gl_Position[1] / v[d].gl_Position[3]) + (state.image_height / 2);
-	float k = (state.image_width / 2) * (v[d].gl_Position[2] / v[d].gl_Position[3]) + (state.image_width / 2);
+	float i = (state.image_width / 2) * (v[d].gl_Position[0] / v[d].gl_Position[3]) + ((state.image_width / 2) - 0.5f);
+	float j = (state.image_height / 2) * (v[d].gl_Position[1] / v[d].gl_Position[3]) + ((state.image_height / 2) - 0.5f);
+	float k = (state.image_width / 2) * (v[d].gl_Position[2] / v[d].gl_Position[3]) + ((state.image_width / 2) - 0.5f);
 	x[d] = i;
 	y[d] = j;
 	z[d] = k;
@@ -213,18 +213,18 @@ void rasterize_triangle(driver_state& state, const data_geometry& v0,
     if (maxY > state.image_height) maxY = state.image_height;
 
 
-    float area = ( (x[1]*y[2]) - (x[2]*y[1]) ) + ( (x[2]*y[0]) - (x[0]*y[2]) )+ ( (x[0]*y[1]) - (x[1]*y[0]) );
+    float area = ( (x[1]*y[2]) - (x[2]*y[1]) ) - ( (x[2]*y[0]) - (x[0]*y[2]) )+ ( (x[0]*y[1]) - (x[1]*y[0]) );
 
     data_output output;
     data_fragment fragData;
     float data[MAX_FLOATS_PER_VERTEX];
     
 
-    for(int j = minY + 1; j < maxY; ++j) {
-	for(int i = minX + 1; i < maxX; ++i) {
-		float alpha = ((x[1]*y[2] - x[2]*y[1]) + (y[1] - y[2])*i + (x[2] - x[1])*j) / area;
-		float beta =  ((x[2]*y[0] - x[0]*y[2]) + (y[2] - y[0])*i + (x[0] - x[2])*j) / area;
-		float gamma = ((x[0]*y[1] - x[1]*y[0]) + (y[0] - y[1])*i + (x[1] - x[0])*j) / area;
+    for(int j = minY; j < maxY; ++j) {
+	for(int i = minX; i < maxX; ++i) {
+		float alpha = (0.5f * ((x[1]*y[2] - x[2]*y[1]) + (y[1] - y[2])*i + (x[2] - x[1])*j)) / area;
+		float beta =  (0.5f * ((x[2]*y[0] - x[0]*y[2]) + (y[2] - y[0])*i + (x[0] - x[2])*j)) / area;
+		float gamma = (0.5f * ((x[0]*y[1] - x[1]*y[0]) + (y[0] - y[1])*i + (x[1] - x[0])*j)) / area;
 
 		if (alpha >= 0 && beta >= 0 && gamma >= 0) {
 			float a = alpha;
